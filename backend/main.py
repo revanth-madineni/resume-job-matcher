@@ -59,11 +59,16 @@ async def analyze(req: AnalyzeRequest):
     if not req.resume_text.strip() or not req.job_description.strip():
         raise HTTPException(status_code=422, detail="Both resume_text and job_description are required.")
     match = compute_match(req.resume_text, req.job_description)
-    suggestions = get_suggestions(
-        req.resume_text,
-        req.job_description,
-        match["missing_skills"],
-    )
+    try:
+        suggestions = get_suggestions(
+            req.resume_text,
+            req.job_description,
+            match["missing_skills"],
+        )
+    except EnvironmentError:
+        suggestions = [
+            "Add ANTHROPIC_API_KEY to the backend environment to enable AI suggestions.",
+        ]
     return {
         "score": match["score"],
         "matched_skills": match["matched_skills"],
@@ -76,5 +81,8 @@ async def analyze(req: AnalyzeRequest):
 async def cover_letter(req: CoverLetterRequest):
     if not req.resume_text.strip() or not req.job_description.strip():
         raise HTTPException(status_code=422, detail="Both resume_text and job_description are required.")
-    letter = generate_cover_letter(req.resume_text, req.job_description)
+    try:
+        letter = generate_cover_letter(req.resume_text, req.job_description)
+    except EnvironmentError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     return {"cover_letter": letter}
